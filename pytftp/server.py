@@ -1,9 +1,7 @@
-from audioop import add
 import socket
 import time
 import os.path
 import math
-from tkinter import Pack
 from pytftp.exception import Exception
 from pytftp.packet import Packet
 from pytftp.opcode import Opcode
