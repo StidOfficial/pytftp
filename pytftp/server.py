@@ -18,9 +18,11 @@ class Client:
     self.__access_mode = access_mode
     self.__block = 0
     self.__end = False
+    self.__shutdown = False
     self.__options = options
     self.__blksize = blksize
     self.__timeout = timeout
+    self.__windowsize = 1
 
     file_size = os.path.getsize(file_path)
 
@@ -42,6 +44,9 @@ class Client:
       if client_timeout <= self.__timeout:
         self.__options["timeout"] = client_timeout
         self.__timeout = client_timeout
+
+    if "windowsize" in self.__options:
+      self.__windowsize = int(self.__options["windowsize"])
 
     if file_size / self.__blksize > 65535:
       print(self.get_addr(), f"not enough available blocks with {self.__blksize} " \
@@ -73,18 +78,22 @@ class Client:
   def send_block(self, resend = False):
     real_block_size = self.__blksize - 2 + 2
 
-    if not resend:
-      self.__last_block = self.__file.read(real_block_size)
+    if resend:
+      self.__file.seek(real_block_size * self.__block)
 
-    packet = Packet()
-    packet.write_opcode(Opcode.DATA)
-    packet.write_uint16(self.__block)
-    packet.write(self.__last_block)
+    for block in range(self.__block, self.__block + self.__windowsize):
+      packet = Packet()
+      packet.write_opcode(Opcode.DATA)
+      packet.write_uint16(block)
 
-    self.send_packet(packet)
+      buffer = self.__file.read(real_block_size)
+      packet.write(buffer)
 
-    if len(self.__last_block) < real_block_size:
-      self.__end = True
+      self.send_packet(packet)
+
+      if len(buffer) < real_block_size:
+        self.__end = True
+        break
 
   def send_oack(self):
     packet = Packet()
@@ -92,9 +101,6 @@ class Client:
     for key, value in self.__options.items():
       packet.write_string(key)
       packet.write_string(str(value))
-
-    packet.write_string("")
-    packet.write_string("")
 
     self.send_packet(packet)
 
@@ -113,8 +119,10 @@ class Client:
 
     self.send_packet(packet)
 
+    self.__shutdown = True
+
   def ack_file(self, block: int):
-    self.__block += 1
+    self.__block = block + 1
     self.send_block()
 
   def listen(self):
@@ -126,7 +134,7 @@ class Client:
 
     retry = 0
 
-    while True:
+    while not self.__shutdown:
       try:
         data, addr = self.__socket.recvfrom(Packet.MAX_SIZE, socket.MSG_DONTWAIT)
 
@@ -145,8 +153,7 @@ class Client:
           block = packet.read_uint16()
           data = packet.read()
 
-          file = self.get_file(addr)
-          if file == None:
+          if self.__access_mode == AccessMode.READ:
             raise Exception(Error.EBADOP)
 
           print(self.get_addr(), block, data)
@@ -177,7 +184,6 @@ class Client:
         retry += 1
       except Exception as ex:
         self.send_error(addr, ex.error)
-        break
 
     self.__file.close()
 
@@ -229,6 +235,8 @@ class Server:
                       self.__blksize, self.__timeout)
       client.listen()
     except FileNotFoundError:
+      print(self.get_addr(address), "file not found")
+
       raise Exception(Error.ENOTFOUND)
 
   def read_options(self, packet: Packet) -> dict:
