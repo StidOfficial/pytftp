@@ -213,7 +213,7 @@ class Server:
     # Patch Windows separator
     filename = filename.replace("\\", os.path.sep)
 
-    file_path = os.path.normpath(os.path.join(self.__base, filename))
+    file_path = os.path.normpath(f"{self.__base}/{filename}")
 
     if not file_path.startswith(self.__base):
       raise Exception(Error.EACCESS)
