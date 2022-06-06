@@ -260,4 +260,5 @@ class Server:
         else:
           print(Utils.addr_to_str(addr), f"invalid packet {opcode}")
       except Exception as ex:
+        print(Utils.addr_to_str(addr), ex.error)
         self.send_error(addr, ex.error)
