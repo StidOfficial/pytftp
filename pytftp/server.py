@@ -11,7 +11,7 @@ from pytftp.utils import Utils
 class Client:
   def __init__(self, address: tuple, file_path: str,
                 access_mode: AccessMode, mode: FileMode, options: dict,
-                blksize: int, timeout: int):
+                blksize: int, timeout: int, windowsize: int):
     self.__address = address
     self.__file = open(file_path, self.get_access_mode(mode, access_mode))
     self.__access_mode = access_mode
@@ -21,7 +21,7 @@ class Client:
     self.__options = options
     self.__blksize = blksize
     self.__timeout = timeout
-    self.__windowsize = 1
+    self.__windowsize = windowsize
 
     file_size = os.path.getsize(file_path)
 
@@ -186,12 +186,14 @@ class Client:
 class Server:
   DEFAULT_BLKSIZE = 8192
   DEFAULT_TIMEOUT = 4
+  DEFAULT_WINDOWSIZE = 1
 
   def __init__(self, address: tuple, base: str, blksize: int = DEFAULT_BLKSIZE,
-                timeout: int = DEFAULT_TIMEOUT):
+                timeout: int = DEFAULT_TIMEOUT, windowsize: int = DEFAULT_WINDOWSIZE):
     self.__base = os.path.abspath(base)
     self.__blksize = blksize
     self.__timeout = timeout
+    self.__windowsize = windowsize
 
     self.__socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     self.__socket.bind(address)
@@ -225,7 +227,7 @@ class Server:
 
     try:
       client = Client(address, file_path, access_mode, mode, options,
-                      self.__blksize, self.__timeout)
+                      self.__blksize, self.__timeout, self.__windowsize)
       client.listen()
     except FileNotFoundError:
       print(Utils.addr_to_str(address), file_path, "file not found")
