@@ -6,6 +6,7 @@ from pytftp.opcode import Opcode
 from pytftp.error import Error
 from pytftp.file_mode import FileMode
 from pytftp.access_mode import AccessMode
+from pytftp.utils import Utils
 
 class Client:
   def __init__(self, address: tuple, file_path: str,
@@ -47,7 +48,7 @@ class Client:
       self.__windowsize = int(self.__options["windowsize"])
 
     if file_size / self.__blksize > 65535:
-      print(self.get_addr(), f"not enough available blocks with {self.__blksize} " \
+      print(Utils.addr_to_str(self.__address), f"not enough available blocks with {self.__blksize} " \
             f"block size for {file_size} bytes, force with {blksize}")
 
       if "blksize" in self.__options:
@@ -66,9 +67,6 @@ class Client:
       str_mode += "wb"
 
     return str_mode
-
-  def get_addr(self) -> str:
-    return f"{self.__address[0]}:{self.__address[1]}"
 
   def send_packet(self, packet: Packet):
     self.__socket.sendto(packet.getvalue(), self.__address)
@@ -135,7 +133,7 @@ class Client:
         data, addr = self.__socket.recvfrom(Packet.MAX_SIZE, socket.MSG_DONTWAIT)
 
         if len(data) < 3:
-          print(self.get_addr(addr), "invalid packet size")
+          print(Utils.addr_to_str(self.__address), "invalid packet size")
           continue
 
         retry = 0
@@ -152,7 +150,7 @@ class Client:
           if self.__access_mode == AccessMode.READ:
             raise Exception(Error.EBADOP)
 
-          print(self.get_addr(), block, data)
+          print(Utils.addr_to_str(self.__address), block, data)
         elif opcode == Opcode.ACK:
           block = packet.read_uint16()
 
@@ -164,11 +162,11 @@ class Client:
           error_code = packet.read_error()
           error_msg = packet.read_string()
 
-          print(self.get_addr(), error_code, error_msg)
+          print(Utils.addr_to_str(self.__address), error_code, error_msg)
 
           break
         else:
-          print(self.get_addr(), f"invalid packet {opcode}")
+          print(Utils.addr_to_str(self.__address), f"invalid packet {opcode}")
 
           continue
       except TimeoutError:
@@ -196,9 +194,6 @@ class Server:
     self.__socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     self.__socket.bind(address)
 
-  def get_addr(self, address: tuple) -> str:
-    return f"{address[0]}:{address[1]}"
-
   def send_packet(self, address: tuple, packet: Packet):
     self.__socket.sendto(packet.getvalue(), address)
 
@@ -223,7 +218,7 @@ class Server:
     if not file_path.startswith(self.__base):
       raise Exception(Error.EACCESS)
     
-    print(self.get_addr(address), access_mode, self.get_file_name(file_path), mode,
+    print(Utils.addr_to_str(address), access_mode, self.get_file_name(file_path), mode,
           options)
 
     try:
@@ -231,7 +226,7 @@ class Server:
                       self.__blksize, self.__timeout)
       client.listen()
     except FileNotFoundError:
-      print(self.get_addr(address), "file not found")
+      print(Utils.addr_to_str(address), "file not found")
 
       raise Exception(Error.ENOTFOUND)
 
@@ -240,7 +235,7 @@ class Server:
       data, addr = self.__socket.recvfrom(Packet.MAX_SIZE)
 
       if len(data) < 3:
-        print(self.get_addr(addr), "invalid packet size")
+        print(Utils.addr_to_str(addr), "invalid packet size")
         continue
 
       try:
@@ -263,6 +258,6 @@ class Server:
               opcode == Opcode.ACK or opcode == Opcode.OACK:
           self.send_error(addr, Error.EBADOP)
         else:
-          print(self.get_addr(addr), f"invalid packet {opcode}")
+          print(Utils.addr_to_str(addr), f"invalid packet {opcode}")
       except Exception as ex:
         self.send_error(addr, ex.error)
