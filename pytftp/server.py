@@ -1,7 +1,5 @@
 import socket
-import time
 import os.path
-import math
 from pytftp.exception import Exception
 from pytftp.packet import Packet
 from pytftp.opcode import Opcode
