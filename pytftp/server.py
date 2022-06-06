@@ -1,6 +1,6 @@
 import socket
 import os.path
-from pytftp.exception import Exception
+from pytftp.exception import TftpException
 from pytftp.packet import Packet
 from pytftp.opcode import Opcode
 from pytftp.error import Error
@@ -148,7 +148,7 @@ class Client:
           data = packet.read()
 
           if self.__access_mode == AccessMode.READ:
-            raise Exception(Error.EBADOP)
+            raise TftpException(Error.EBADOP)
 
           print(Utils.addr_to_str(self.__address), block, data)
         elif opcode == Opcode.ACK:
@@ -176,8 +176,10 @@ class Client:
         self.send_block(resend = True)
 
         retry += 1
-      except Exception as ex:
-        self.send_error(addr, ex.error)
+      except TftpException as e:
+        print(Utils.addr_to_str(addr), e.error)
+
+        self.send_error(addr, e.error)
 
     self.__file.close()
 
@@ -216,7 +218,7 @@ class Server:
     file_path = os.path.normpath(f"{self.__base}/{filename}")
 
     if not file_path.startswith(self.__base):
-      raise Exception(Error.EACCESS)
+      raise TftpException(Error.EACCESS)
     
     print(Utils.addr_to_str(address), access_mode, self.get_file_name(file_path), mode,
           options)
@@ -226,9 +228,9 @@ class Server:
                       self.__blksize, self.__timeout)
       client.listen()
     except FileNotFoundError:
-      print(Utils.addr_to_str(address), "file not found")
+      print(Utils.addr_to_str(address), file_path, "file not found")
 
-      raise Exception(Error.ENOTFOUND)
+      raise TftpException(Error.ENOTFOUND)
 
   def listen(self):
     while True:
@@ -259,6 +261,7 @@ class Server:
           self.send_error(addr, Error.EBADOP)
         else:
           print(Utils.addr_to_str(addr), f"invalid packet {opcode}")
-      except Exception as ex:
-        print(Utils.addr_to_str(addr), ex.error)
-        self.send_error(addr, ex.error)
+      except TftpException as e:
+        print(Utils.addr_to_str(addr), e.error)
+
+        self.send_error(addr, e.error)
