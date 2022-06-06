@@ -96,9 +96,7 @@ class Client:
   def send_oack(self):
     packet = Packet()
     packet.write_opcode(Opcode.OACK)
-    for key, value in self.__options.items():
-      packet.write_string(key)
-      packet.write_string(str(value))
+    packet.write_options(self.__options)
 
     self.send_packet(packet)
 
@@ -237,20 +235,6 @@ class Server:
 
       raise Exception(Error.ENOTFOUND)
 
-  def read_options(self, packet: Packet) -> dict:
-    options = {}
-
-    while True:
-      option = packet.read_string()
-      value = packet.read_string()
-
-      if len(option) == 0:
-        break
-
-      options[option] = value
-
-    return options
-
   def listen(self):
     while True:
       data, addr = self.__socket.recvfrom(Packet.MAX_SIZE)
@@ -266,13 +250,13 @@ class Server:
         if opcode == Opcode.RRQ:
           filename = packet.read_string()
           mode = FileMode(packet.read_string())
-          options = self.read_options(packet)
+          options = packet.read_options()
 
           self.open_file(addr, filename, mode, AccessMode.READ, options)
         elif opcode == Opcode.WRQ:
           filename = packet.read_string()
           mode = FileMode(packet.read_string())
-          options = self.read_options(packet)
+          options = packet.read_options()
 
           self.open_file(addr, filename, mode, AccessMode.READ, options)
         elif opcode == Opcode.DATA or opcode == Opcode.ACK or \

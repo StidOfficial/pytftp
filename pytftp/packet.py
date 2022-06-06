@@ -19,3 +19,22 @@ class Packet(Stream):
 
   def write_error(self, error: Error):
     self.write_uint16(error.value)
+
+  def read_options(self) -> dict:
+    options = {}
+
+    while True:
+      option = self.read_string()
+      value = self.read_string()
+
+      if len(option) == 0:
+        break
+
+      options[option] = value
+
+    return options
+
+  def write_options(self, value: dict):
+    for key, value in value.items():
+        self.write_string(key)
+        self.write_string(str(value))
