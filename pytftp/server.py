@@ -47,14 +47,6 @@ class Client:
     if "windowsize" in self.__options:
       self.__windowsize = int(self.__options["windowsize"])
 
-    if file_size / self.__blksize > 65535:
-      print(Utils.addr_to_str(self.__address), f"not enough available blocks with {self.__blksize} " \
-            f"block size for {file_size} bytes, force with {blksize}")
-
-      if "blksize" in self.__options:
-        self.__options["blksize"] = blksize
-      self.__blksize = blksize
-
     self.__socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     self.__socket.settimeout(self.__timeout)
 
@@ -80,7 +72,7 @@ class Client:
     for block in range(self.__block, self.__block + self.__windowsize):
       packet = Packet()
       packet.write_opcode(Opcode.DATA)
-      packet.write_uint16(block)
+      packet.write_uint16(block % (0xffff + 1))
 
       buffer = self.__file.read(real_block_size)
       packet.write(buffer)
@@ -116,7 +108,13 @@ class Client:
     self.__shutdown = True
 
   def ack_file(self, block: int):
-    self.__block = block + 1
+    current_block = self.__block % 0xffff
+
+    if block != 0 and block < current_block:
+      print(Utils.addr_to_str(self.__address), f"block {block} is already validated")
+      return
+
+    self.__block += (block - current_block) + 1
     self.send_block()
 
   def listen(self):
