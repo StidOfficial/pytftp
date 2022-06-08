@@ -140,12 +140,15 @@ class Client:
 
         opcode = packet.read_opcode()
         if opcode == Opcode.RRQ or opcode == Opcode.WRQ:
+          print(Utils.addr_to_str(self.__address), "read or write already requested")
+
           self.send_error(Error.EBADOP)
         elif opcode == Opcode.DATA:
           block = packet.read_uint16()
           data = packet.read()
 
           if self.__access_mode == AccessMode.READ:
+            print(Utils.addr_to_str(self.__address), "cannot read in write mode")
             raise TftpException(Error.EBADOP)
 
           print(Utils.addr_to_str(self.__address), block, data)
@@ -169,7 +172,10 @@ class Client:
           continue
       except TimeoutError:
         if retry == 5:
+          print(Utils.addr_to_str(self.__address), f"lost connection")
           break
+
+        print(Utils.addr_to_str(self.__address), f"timeout, retry")
 
         self.send_block(resend = True)
 
@@ -258,6 +264,7 @@ class Server:
           self.open_file(addr, filename, mode, AccessMode.READ, options)
         elif opcode == Opcode.DATA or opcode == Opcode.ACK or \
               opcode == Opcode.ACK or opcode == Opcode.OACK:
+          print(Utils.addr_to_str(addr), f"cannot do {opcode}")
           self.send_error(addr, Error.EBADOP)
         else:
           print(Utils.addr_to_str(addr), f"invalid packet {opcode}")
